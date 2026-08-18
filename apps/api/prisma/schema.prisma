@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum GlobalRole {
+  ADMIN
+  COLABORADOR
+}
+
+enum UserStatus {
+  ATIVO
+  BLOQUEADO
+  ARQUIVADO
+}
+
+enum ProjetoStatus {
+  ATIVO
+  INATIVO
+}
+
+enum ModalidadeRemuneracao {
+  FIXO_POR_TRABALHO
+  FIXO_POR_UNIDADE
+  LIVRE
+}
+
+enum LancamentoStatus {
+  ABERTO
+  FECHADO
+}
+
+enum AuditoriaAcao {
+  FECHAMENTO
+  REABERTURA
+  EDICAO_POS_FECHAMENTO
+}
+
+// ---------------------------------------------------------------------------
+// Usuários e autenticação
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String     @id @default(cuid())
+  nome            String
+  email           String     @unique
+  senhaHash       String
+  papel           GlobalRole @default(COLABORADOR)
+  status          UserStatus @default(ATIVO)
+  senhaTemporaria Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  refreshTokens       RefreshToken[]
+  regrasRemuneracao   RegraRemuneracao[]
+  lancamentos         Lancamento[]
+  fechamentosFeitos   Fechamento[]       @relation("FechamentoFechadoPor")
+  fechamentosReabertos Fechamento[]      @relation("FechamentoReabertoPor")
+  auditLogs           AuditLog[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Projetos e tipos de trabalho
+// ---------------------------------------------------------------------------
+
+model Projeto {
+  id        String        @id @default(cuid())
+  nome      String
+  status    ProjetoStatus @default(ATIVO)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  lancamentos Lancamento[]
+
+  @@map("projetos")
+}
+
+model TipoTrabalho {
+  id            String   @id @default(cuid())
+  nome          String
+  unidadePadrao String?
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  regrasRemuneracao RegraRemuneracao[]
+  lancamentos       Lancamento[]
+
+  @@map("tipos_trabalho")
+}
+
+// ---------------------------------------------------------------------------
+// Perfis de remuneração (regras por usuário x tipo de trabalho)
+// ---------------------------------------------------------------------------
+
+model RegraRemuneracao {
+  id             String                @id @default(cuid())
+  usuarioId      String
+  tipoTrabalhoId String
+  modalidade     ModalidadeRemuneracao
+  valorUnitario  Decimal?              @db.Decimal(12, 2)
+  ativo          Boolean               @default(true)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  usuario      User         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tipoTrabalho TipoTrabalho @relation(fields: [tipoTrabalhoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, tipoTrabalhoId])
+  @@map("regras_remuneracao")
+}
+
+// ---------------------------------------------------------------------------
+// Lançamentos ("planilha de custos")
+// ---------------------------------------------------------------------------
+
+model Lancamento {
+  id             String           @id @default(cuid())
+  usuarioId      String
+  projetoId      String
+  tipoTrabalhoId String
+  descricao      String?
+  quantidade     Decimal          @db.Decimal(10, 2)
+  dataEntrega    DateTime
+  valorUnitario  Decimal          @db.Decimal(12, 2)
+  valorTotal     Decimal          @db.Decimal(12, 2)
+  linkEntrega    String?
+  competencia    String
+  periodoInicio  DateTime
+  periodoFim     DateTime
+  status         LancamentoStatus @default(ABERTO)
+  fechamentoId   String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  usuario      User         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  projeto      Projeto      @relation(fields: [projetoId], references: [id])
+  tipoTrabalho TipoTrabalho @relation(fields: [tipoTrabalhoId], references: [id])
+  fechamento   Fechamento?  @relation(fields: [fechamentoId], references: [id])
+
+  @@index([usuarioId])
+  @@index([projetoId])
+  @@index([tipoTrabalhoId])
+  @@index([status])
+  @@index([periodoInicio, periodoFim])
+  @@map("lancamentos")
+}
+
+// ---------------------------------------------------------------------------
+// Fechamentos de período
+// ---------------------------------------------------------------------------
+
+model Fechamento {
+  id            String    @id @default(cuid())
+  dataInicio    DateTime
+  dataFim       DateTime
+  competencia   String
+  fechadoPorId  String
+  fechadoEm     DateTime  @default(now())
+  reaberto      Boolean   @default(false)
+  reabertoPorId String?
+  reabertoEm    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  fechadoPor   User         @relation("FechamentoFechadoPor", fields: [fechadoPorId], references: [id])
+  reabertoPor  User?        @relation("FechamentoReabertoPor", fields: [reabertoPorId], references: [id])
+  lancamentos  Lancamento[]
+
+  @@map("fechamentos")
+}
+
+// ---------------------------------------------------------------------------
+// Auditoria
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id        String        @id @default(cuid())
+  acao      AuditoriaAcao
+  entidade  String
+  entidadeId String
+  usuarioId String
+  detalhes  Json?
+  createdAt DateTime      @default(now())
+
+  usuario User @relation(fields: [usuarioId], references: [id])
+
+  @@index([entidade, entidadeId])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Configuração global do sistema
+// ---------------------------------------------------------------------------
+
+model ConfiguracaoSistema {
+  id                    String   @id @default("default")
+  proximoPeriodoInicio  DateTime
+  updatedAt             DateTime @updatedAt
+
+  @@map("configuracao_sistema")
+}

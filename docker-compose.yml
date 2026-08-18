@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: allmyworks-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: allmyworks
+      POSTGRES_PASSWORD: allmyworks
+      POSTGRES_DB: allmyworks
+    ports:
+      - "5432:5432"
+    volumes:
+      - allmyworks_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  allmyworks_postgres_data:
