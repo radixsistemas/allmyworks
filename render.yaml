@@ -1,6 +1,6 @@
 databases:
   - name: allmyworks-db
-    plan: free
+    plan: 0.1c-256mb
     region: oregon
     postgresMajorVersion: "16"
 
@@ -8,7 +8,7 @@ services:
   - type: web
     name: allmyworks-api
     runtime: node
-    plan: free
+    plan: 0.5c-512mb
     region: oregon
     buildCommand: npm install
     startCommand: npm run db:migrate:deploy -w apps/api && npm run start -w apps/api
@@ -47,7 +47,8 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      # Troque para "false" quando configurar SMTP_* de verdade abaixo.
       - key: EMAIL_DRY_RUN
-        value: "false"
+        value: "true"
       - key: CLOSING_REMINDER_CRON
         value: "0 13 18 * *"
