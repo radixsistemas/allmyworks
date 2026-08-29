@@ -6,6 +6,7 @@ import { Field } from "../../components/ui/Field";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
+import { EmptyState } from "../../components/ui/EmptyState";
 import { FullPageSpinner } from "../../components/ui/Spinner";
 import { useCreateProjeto, useProjetos, useUpdateProjeto } from "../../hooks/useProjetos";
 import { getApiErrorMessage } from "../../lib/api";
@@ -52,6 +53,8 @@ export function ProjetosPage() {
       <Card className="p-5">
         {isLoading || !projetos ? (
           <FullPageSpinner />
+        ) : projetos.length === 0 ? (
+          <EmptyState title="Nenhum projeto cadastrado" description="Adicione o primeiro projeto acima." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[420px] text-sm">

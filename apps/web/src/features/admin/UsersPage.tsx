@@ -7,6 +7,7 @@ import { Input, Select } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { Modal } from "../../components/ui/Modal";
+import { EmptyState } from "../../components/ui/EmptyState";
 import { FullPageSpinner } from "../../components/ui/Spinner";
 import { useCreateUser, useResetPassword, useUpdateUserStatus, useUsers } from "../../hooks/useUsers";
 import { getApiErrorMessage } from "../../lib/api";
@@ -70,6 +71,8 @@ export function UsersPage() {
       <Card className="p-5">
         {isLoading || !users ? (
           <FullPageSpinner />
+        ) : users.length === 0 ? (
+          <EmptyState title="Nenhum usuário encontrado" description="Ajuste o filtro de status ou crie um novo usuário." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">

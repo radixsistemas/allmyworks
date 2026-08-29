@@ -4,6 +4,7 @@ import { Field } from "../../components/ui/Field";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
+import { EmptyState } from "../../components/ui/EmptyState";
 import { FullPageSpinner } from "../../components/ui/Spinner";
 import { useCreateTipoTrabalho, useTiposTrabalho, useUpdateTipoTrabalho } from "../../hooks/useTiposTrabalho";
 import { getApiErrorMessage } from "../../lib/api";
@@ -59,6 +60,8 @@ export function TiposTrabalhoPage() {
       <Card className="p-5">
         {isLoading || !tipos ? (
           <FullPageSpinner />
+        ) : tipos.length === 0 ? (
+          <EmptyState title="Nenhum tipo de trabalho cadastrado" description="Adicione o primeiro tipo de trabalho acima." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] text-sm">
