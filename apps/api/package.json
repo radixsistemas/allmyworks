@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "create-admin": "tsx prisma/create-admin.ts",
     "db:studio": "prisma studio",
     "closing-reminder:check": "tsx src/jobs/runClosingReminderOnce.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
