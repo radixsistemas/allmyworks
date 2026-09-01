@@ -18,12 +18,19 @@ const statusTone: Record<UserStatus, "green" | "amber" | "slate"> = {
   ARQUIVADO: "slate",
 };
 
+interface SenhaGerada {
+  nome: string;
+  email: string;
+  senha: string;
+}
+
 export function UsersPage() {
   const [filtroStatus, setFiltroStatus] = useState<UserStatus | "">("");
   const { data: users, isLoading } = useUsers({ status: filtroStatus || undefined });
   const updateStatus = useUpdateUserStatus();
   const resetPassword = useResetPassword();
   const [modalOpen, setModalOpen] = useState(false);
+  const [senhaGerada, setSenhaGerada] = useState<SenhaGerada | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   async function handleStatusChange(id: string, status: UserStatus) {
@@ -39,8 +46,8 @@ export function UsersPage() {
     if (!window.confirm(`Gerar uma nova senha temporária para ${nome}?`)) return;
     setActionError(null);
     try {
-      await resetPassword.mutateAsync(id);
-      window.alert("Senha redefinida. Um e-mail foi enviado (ou registrado no console, se SMTP não estiver configurado).");
+      const updated = await resetPassword.mutateAsync(id);
+      setSenhaGerada({ nome: updated.nome, email: updated.email, senha: updated.senhaProvisoria });
     } catch (err) {
       setActionError(getApiErrorMessage(err));
     }
@@ -124,12 +131,60 @@ export function UsersPage() {
         )}
       </Card>
 
-      <NovoUsuarioModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <NovoUsuarioModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={setSenhaGerada} />
+      <SenhaGeradaModal senhaGerada={senhaGerada} onClose={() => setSenhaGerada(null)} />
     </div>
   );
 }
 
-function NovoUsuarioModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function SenhaGeradaModal({ senhaGerada, onClose }: { senhaGerada: SenhaGerada | null; onClose: () => void }) {
+  const [copiado, setCopiado] = useState(false);
+
+  if (!senhaGerada) return null;
+
+  async function handleCopiar() {
+    try {
+      await navigator.clipboard.writeText(senhaGerada!.senha);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      // clipboard indisponível — o usuário ainda pode selecionar o texto manualmente
+    }
+  }
+
+  return (
+    <Modal open={!!senhaGerada} onClose={onClose} title="Senha temporária gerada">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Repasse esta senha para <strong>{senhaGerada.nome}</strong> ({senhaGerada.email}) de forma segura. Ela não será
+          mostrada novamente, e será obrigatório trocá-la no primeiro acesso. Se o envio de e-mail (SMTP) estiver
+          configurado, uma cópia também foi enviada automaticamente.
+        </p>
+        <div className="flex items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+          <code className="flex-1 select-all font-mono text-sm text-slate-900 dark:text-slate-100">{senhaGerada.senha}</code>
+          <Button type="button" size="sm" variant="secondary" onClick={handleCopiar}>
+            {copiado ? "Copiado!" : "Copiar"}
+          </Button>
+        </div>
+        <div className="flex justify-end pt-2">
+          <Button type="button" onClick={onClose}>
+            Entendi
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function NovoUsuarioModal({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (senhaGerada: SenhaGerada) => void;
+}) {
   const createUser = useCreateUser();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
@@ -148,8 +203,9 @@ function NovoUsuarioModal({ open, onClose }: { open: boolean; onClose: () => voi
     event.preventDefault();
     setError(null);
     try {
-      await createUser.mutateAsync({ nome, email, papel });
+      const created = await createUser.mutateAsync({ nome, email, papel });
       handleClose();
+      onCreated({ nome: created.nome, email: created.email, senha: created.senhaProvisoria });
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
@@ -174,7 +230,8 @@ function NovoUsuarioModal({ open, onClose }: { open: boolean; onClose: () => voi
           </Select>
         </Field>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Uma senha temporária será gerada e enviada por e-mail. O usuário será obrigado a trocá-la no primeiro acesso.
+          Uma senha temporária será gerada. Você poderá vê-la e copiá-la na próxima tela, além de ser enviada por e-mail
+          caso o SMTP esteja configurado. O usuário será obrigado a trocá-la no primeiro acesso.
         </p>
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}

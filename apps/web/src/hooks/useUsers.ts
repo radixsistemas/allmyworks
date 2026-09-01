@@ -3,6 +3,8 @@ import type { GlobalRole, UserStatus } from "@allmyworks/shared";
 import { api } from "../lib/api";
 import type { User } from "../types/api";
 
+export type UserComSenhaProvisoria = User & { senhaProvisoria: string };
+
 export function useUsers(filters: { status?: UserStatus } = {}) {
   return useQuery({
     queryKey: ["users", filters],
@@ -23,7 +25,8 @@ export interface CreateUserInput {
 export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: CreateUserInput) => (await api.post<User>("/users", input)).data,
+    mutationFn: async (input: CreateUserInput) =>
+      (await api.post<UserComSenhaProvisoria>("/users", input)).data,
     onSuccess: () => invalidateUsers(qc),
   });
 }
@@ -48,7 +51,7 @@ export function useUpdateUserStatus() {
 export function useResetPassword() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => (await api.post<User>(`/users/${id}/reset-password`)).data,
+    mutationFn: async (id: string) => (await api.post<UserComSenhaProvisoria>(`/users/${id}/reset-password`)).data,
     onSuccess: () => invalidateUsers(qc),
   });
 }

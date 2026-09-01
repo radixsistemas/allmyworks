@@ -52,7 +52,7 @@ export async function createUser(input: CreateUserInput) {
   const { subject, html } = novoUsuarioEmail(user.nome, user.email, senhaTemporaria);
   await sendEmail({ to: user.email, subject, html });
 
-  return sanitizeUser(user);
+  return { ...sanitizeUser(user), senhaProvisoria: senhaTemporaria };
 }
 
 export async function updateUser(id: string, input: UpdateUserInput) {
@@ -91,5 +91,5 @@ export async function resetPassword(id: string) {
   const { subject, html } = senhaResetadaEmail(updated.nome, senhaTemporaria);
   await sendEmail({ to: updated.email, subject, html });
 
-  return sanitizeUser(updated);
+  return { ...sanitizeUser(updated), senhaProvisoria: senhaTemporaria };
 }
