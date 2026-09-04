@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { GLOBAL_ROLE_LABELS, USER_STATUS_LABELS } from "@allmyworks/shared";
 import type { GlobalRole, UserStatus } from "@allmyworks/shared";
 import { Card } from "../../components/ui/Card";
@@ -9,8 +9,9 @@ import { Badge } from "../../components/ui/Badge";
 import { Modal } from "../../components/ui/Modal";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { FullPageSpinner } from "../../components/ui/Spinner";
-import { useCreateUser, useResetPassword, useUpdateUserStatus, useUsers } from "../../hooks/useUsers";
+import { useCreateUser, useResetPassword, useUpdateUser, useUpdateUserStatus, useUsers } from "../../hooks/useUsers";
 import { getApiErrorMessage } from "../../lib/api";
+import type { User } from "../../types/api";
 
 const statusTone: Record<UserStatus, "green" | "amber" | "slate"> = {
   ATIVO: "green",
@@ -30,6 +31,7 @@ export function UsersPage() {
   const updateStatus = useUpdateUserStatus();
   const resetPassword = useResetPassword();
   const [modalOpen, setModalOpen] = useState(false);
+  const [editando, setEditando] = useState<User | null>(null);
   const [senhaGerada, setSenhaGerada] = useState<SenhaGerada | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -103,6 +105,9 @@ export function UsersPage() {
                     </td>
                     <td className="py-2 pr-3">
                       <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setEditando(u)}>
+                          Editar
+                        </Button>
                         {u.status !== "ATIVO" && (
                           <Button size="sm" variant="ghost" onClick={() => handleStatusChange(u.id, "ATIVO")}>
                             Ativar
@@ -132,8 +137,71 @@ export function UsersPage() {
       </Card>
 
       <NovoUsuarioModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={setSenhaGerada} />
+      <EditarUsuarioModal usuario={editando} onClose={() => setEditando(null)} />
       <SenhaGeradaModal senhaGerada={senhaGerada} onClose={() => setSenhaGerada(null)} />
     </div>
+  );
+}
+
+function EditarUsuarioModal({ usuario, onClose }: { usuario: User | null; onClose: () => void }) {
+  const updateUser = useUpdateUser(usuario?.id ?? "");
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [papel, setPapel] = useState<GlobalRole>("COLABORADOR");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!usuario) return;
+    setNome(usuario.nome);
+    setEmail(usuario.email);
+    setPapel(usuario.papel);
+    setError(null);
+  }, [usuario]);
+
+  if (!usuario) return null;
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    try {
+      await updateUser.mutateAsync({ nome, email, papel });
+      onClose();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    }
+  }
+
+  return (
+    <Modal open={!!usuario} onClose={onClose} title="Editar usuário">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field label="Nome" required>
+          <Input required autoFocus value={nome} onChange={(e) => setNome(e.target.value)} />
+        </Field>
+        <Field label="E-mail" required>
+          <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </Field>
+        <Field label="Papel" required>
+          <Select value={papel} onChange={(e) => setPapel(e.target.value as GlobalRole)}>
+            {Object.entries(GLOBAL_ROLE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={updateUser.isPending}>
+            {updateUser.isPending ? "Salvando..." : "Salvar alterações"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
