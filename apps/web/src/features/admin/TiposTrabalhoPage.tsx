@@ -46,7 +46,7 @@ export function TiposTrabalhoPage() {
             </Field>
           </div>
           <div className="min-w-[200px] flex-1">
-            <Field label="Unidade padrão" hint="Apenas um rótulo de referência, ex: página, lauda, trabalho">
+            <Field label="Unidade padrão">
               <Input value={unidadePadrao} onChange={(e) => setUnidadePadrao(e.target.value)} placeholder="Ex: página" />
             </Field>
           </div>
@@ -54,6 +54,9 @@ export function TiposTrabalhoPage() {
             {createTipo.isPending ? "Adicionando..." : "Adicionar"}
           </Button>
         </form>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          "Unidade padrão" é apenas um rótulo de referência, ex: página, lauda, trabalho.
+        </p>
         {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
       </Card>
 
